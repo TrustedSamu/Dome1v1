@@ -12,7 +12,6 @@ import {
   useToast,
   Flex,
   Badge,
-  Grid,
   Textarea,
   Stat,
   StatLabel,
@@ -32,13 +31,6 @@ import {
   PopoverBody,
   PopoverArrow,
   PopoverCloseButton,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  useDisclosure,
 } from '@chakra-ui/react'
 import { FaPlus, FaSignOutAlt, FaHistory, FaMoon, FaSun, FaComment, FaTrash, FaEye } from 'react-icons/fa'
 import TrainingLog from './BodyMap'
@@ -67,9 +59,14 @@ interface WeedUsage {
   note?: string
 }
 
-// Extend the imported User type
-type ExtendedUser = User & {
+// Extend the imported User type without unused interfaces
+type ExtendedUser = Omit<User, 'insights'> & {
   weedUsage: WeedUsage[]
+  insights: Array<{
+    question: string
+    insight: string
+    date: string
+  }>
 }
 
 interface DashboardProps {
