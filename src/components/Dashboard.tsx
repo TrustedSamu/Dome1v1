@@ -32,8 +32,15 @@ import {
   PopoverBody,
   PopoverArrow,
   PopoverCloseButton,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
 } from '@chakra-ui/react'
-import { FaPlus, FaSignOutAlt, FaHistory, FaMoon, FaSun, FaComment } from 'react-icons/fa'
+import { FaPlus, FaSignOutAlt, FaHistory, FaMoon, FaSun, FaComment, FaTrash, FaEye } from 'react-icons/fa'
 import TrainingLog from './BodyMap'
 import { 
   getUser, 
@@ -48,6 +55,7 @@ import {
   trackWeedUsage,
   updateSleepTime,
   updateWakeTime,
+  deleteTask,
 } from '../services/firebase'
 import type { User } from '../services/firebase'
 import History from './History'
@@ -128,8 +136,9 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
   const [users, setUsers] = useState<ExtendedUser[]>([])
   const [newTask, setNewTask] = useState('')
   const [newPoints, setNewPoints] = useState('5')
-  const toast = useToast()
   const [showHistory, setShowHistory] = useState(false)
+  const [viewingUser, setViewingUser] = useState(currentUser)
+  const toast = useToast()
   const { colorMode, toggleColorMode } = useColorMode()
   const [taskToConfirm, setTaskToConfirm] = useState<{ id: string; player: string } | null>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -414,6 +423,30 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
     }
   }
 
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTask(currentUser, taskId)
+      const updatedUser = await getUser(currentUser)
+      if (updatedUser) {
+        setUsers(prev => prev.map(user => 
+          user.name === currentUser ? updatedUser : user
+        ))
+        toast({
+          title: 'Task Deleted',
+          status: 'success',
+          duration: 2000,
+        })
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      toast({
+        title: 'Error deleting task',
+        status: 'error',
+        duration: 3000,
+      })
+    }
+  }
+
   if (showHistory) {
     return (
       <Box minH="100vh" bg={pageBgColor}>
@@ -421,6 +454,8 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
       </Box>
     )
   }
+
+  const otherUser = viewingUser === 'Dominik' ? 'Samu' : 'Dominik'
 
   return (
     <Box minH="100vh" bg={pageBgColor} p={{ base: 2, md: 6 }}>
@@ -445,6 +480,14 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
           </StatGroup>
         </VStack>
         <HStack spacing={4} justify={{ base: 'center', md: 'flex-end' }} w={{ base: 'full', md: 'auto' }}>
+          <Button
+            leftIcon={<FaEye />}
+            onClick={() => setViewingUser(otherUser)}
+            colorScheme="purple"
+            variant="outline"
+          >
+            View {otherUser}'s Progress
+          </Button>
           <IconButton
             aria-label="Toggle color mode"
             icon={colorMode === 'light' ? <FaMoon /> : <FaSun />}
@@ -469,199 +512,245 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
         </HStack>
       </Flex>
 
-      <Grid 
-        templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} 
-        gap={{ base: 4, md: 6 }} 
-        mb={6}
-      >
-        {['Dominik', 'Samu'].map(player => {
-          const user = users.find(u => u.name === player)
-          if (!user) return null
+      {users.map(user => {
+        if (user.name !== viewingUser) return null;
 
-          const dailyTasks = user.tasks.filter(t => t.date === today && t.isRecurring)
-          const customTasks = user.tasks.filter(t => t.date === today && !t.isRecurring)
+        const dailyTasks = user.tasks.filter(t => t.date === today && t.isRecurring)
+        const customTasks = user.tasks.filter(t => t.date === today && !t.isRecurring)
 
-          return (
-            <Box key={player}>
-              <Heading size="lg" mb={4} color={textColor}>{player}'s Progress</Heading>
-              <VStack spacing={6} align="stretch">
-                <Box bg={bgColor} p={4} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                  <HStack justify="space-between" align="center">
-                    <VStack align="start" spacing={2}>
-                      <Text color={textColor} fontWeight="bold">Sleep Schedule</Text>
-                      <HStack spacing={4}>
-                        <HStack>
-                          <Text color={textColor}>Sleep:</Text>
-                          <Input
-                            type="time"
-                            value={users.find(u => u.name === player)?.sleep?.sleepTime || ''}
-                            onChange={async (e) => {
-                              if (currentUser === player) {
-                                try {
-                                  await updateSleepTime(player, e.target.value, today);
-                                  // Update local state after successful API call
-                                  const updatedUser = await getUser(player);
-                                  if (updatedUser) {
-                                    setUsers(prev => prev.map(user => 
-                                      user.name === player ? updatedUser : user
-                                    ));
-                                  }
-                                } catch (error) {
-                                  console.error('Error updating sleep time:', error);
-                                  toast({
-                                    title: 'Error updating sleep time',
-                                    status: 'error',
-                                    duration: 3000,
-                                  });
+        return (
+          <Box key={user.name}>
+            <Heading size="lg" mb={4} color={textColor}>{user.name}'s Progress</Heading>
+            <VStack spacing={6} align="stretch">
+              <Box bg={bgColor} p={4} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                <HStack justify="space-between" align="center">
+                  <VStack align="start" spacing={2}>
+                    <Text color={textColor} fontWeight="bold">Sleep Schedule</Text>
+                    <HStack spacing={4}>
+                      <HStack>
+                        <Text color={textColor}>Sleep:</Text>
+                        <Input
+                          type="time"
+                          value={users.find(u => u.name === user.name)?.sleep?.sleepTime || ''}
+                          onChange={async (e) => {
+                            if (currentUser === user.name) {
+                              try {
+                                await updateSleepTime(user.name, e.target.value, today);
+                                // Update local state after successful API call
+                                const updatedUser = await getUser(user.name);
+                                if (updatedUser) {
+                                  setUsers(prev => prev.map(user => 
+                                    user.name === user.name ? updatedUser : user
+                                  ));
                                 }
+                              } catch (error) {
+                                console.error('Error updating sleep time:', error);
+                                toast({
+                                  title: 'Error updating sleep time',
+                                  status: 'error',
+                                  duration: 3000,
+                                });
                               }
-                            }}
-                            size="sm"
-                            w="100px"
-                            isDisabled={currentUser !== player}
-                          />
-                        </HStack>
-                        <HStack>
-                          <Text color={textColor}>Wake:</Text>
-                          <Input
-                            type="time"
-                            value={users.find(u => u.name === player)?.sleep?.wakeTime || ''}
-                            onChange={async (e) => {
-                              if (currentUser === player) {
-                                try {
-                                  await updateWakeTime(player, e.target.value, today);
-                                  // Update local state after successful API call
-                                  const updatedUser = await getUser(player);
-                                  if (updatedUser) {
-                                    setUsers(prev => prev.map(user => 
-                                      user.name === player ? updatedUser : user
-                                    ));
-                                  }
-                                } catch (error) {
-                                  console.error('Error updating wake time:', error);
-                                  toast({
-                                    title: 'Error updating wake time',
-                                    status: 'error',
-                                    duration: 3000,
-                                  });
-                                }
-                              }
-                            }}
-                            size="sm"
-                            w="100px"
-                            isDisabled={currentUser !== player}
-                          />
-                        </HStack>
+                            }
+                          }}
+                          size="sm"
+                          w="100px"
+                          isDisabled={currentUser !== user.name}
+                        />
                       </HStack>
-                    </VStack>
-                    {users.find(u => u.name === player)?.sleep?.duration ? (
-                      <Badge colorScheme="purple" p={2}>
-                        {users.find(u => u.name === player)?.sleep?.duration} hours sleep
-                      </Badge>
-                    ) : null}
-                  </HStack>
-                </Box>
-
-                {player === currentUser && (
-                  <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                    <Heading size="md" mb={4} color={textColor}>Add New Task</Heading>
-                    <HStack>
-                      <Input
-                        placeholder="Enter task description"
-                        value={newTask}
-                        onChange={(e) => setNewTask(e.target.value)}
-                        bg={bgColor}
-                        color={textColor}
-                        borderColor={borderColor}
-                      />
-                      <Input
-                        placeholder="Points"
-                        value={newPoints}
-                        onChange={(e) => setNewPoints(e.target.value)}
-                        type="number"
-                        w="100px"
-                        bg={bgColor}
-                        color={textColor}
-                        borderColor={borderColor}
-                      />
-                      <IconButton
-                        aria-label="Add task"
-                        icon={<FaPlus />}
-                        onClick={handleAddTask}
-                        colorScheme="purple"
-                      />
+                      <HStack>
+                        <Text color={textColor}>Wake:</Text>
+                        <Input
+                          type="time"
+                          value={users.find(u => u.name === user.name)?.sleep?.wakeTime || ''}
+                          onChange={async (e) => {
+                            if (currentUser === user.name) {
+                              try {
+                                await updateWakeTime(user.name, e.target.value, today);
+                                // Update local state after successful API call
+                                const updatedUser = await getUser(user.name);
+                                if (updatedUser) {
+                                  setUsers(prev => prev.map(user => 
+                                    user.name === user.name ? updatedUser : user
+                                  ));
+                                }
+                              } catch (error) {
+                                console.error('Error updating wake time:', error);
+                                toast({
+                                  title: 'Error updating wake time',
+                                  status: 'error',
+                                  duration: 3000,
+                                });
+                              }
+                            }
+                          }}
+                          size="sm"
+                          w="100px"
+                          isDisabled={currentUser !== user.name}
+                        />
+                      </HStack>
                     </HStack>
-                  </Box>
-                )}
+                  </VStack>
+                  {users.find(u => u.name === user.name)?.sleep?.duration ? (
+                    <Badge colorScheme="purple" p={2}>
+                      {users.find(u => u.name === user.name)?.sleep?.duration} hours sleep
+                    </Badge>
+                  ) : null}
+                </HStack>
+              </Box>
 
-                <Box bg={bgColor} p={4} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                  <HStack justify="space-between">
-                    <Checkbox
-                      isChecked={users.find(u => u.name === player)?.weedUsage?.find((w: WeedUsage) => w.date === today)?.used || false}
-                      onChange={(e) => handleTrackWeed(e.target.checked)}
+              {currentUser === user.name && (
+                <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                  <Heading size="md" mb={4} color={textColor}>Add New Task</Heading>
+                  <HStack>
+                    <Input
+                      placeholder="Enter task description"
+                      value={newTask}
+                      onChange={(e) => setNewTask(e.target.value)}
+                      bg={bgColor}
+                      color={textColor}
+                      borderColor={borderColor}
+                    />
+                    <Input
+                      placeholder="Points"
+                      value={newPoints}
+                      onChange={(e) => setNewPoints(e.target.value)}
+                      type="number"
+                      w="100px"
+                      bg={bgColor}
+                      color={textColor}
+                      borderColor={borderColor}
+                    />
+                    <IconButton
+                      aria-label="Add task"
+                      icon={<FaPlus />}
+                      onClick={handleAddTask}
                       colorScheme="purple"
-                      isDisabled={currentUser !== player}
-                    >
-                      <Text color={textColor}>I smoked weed today</Text>
-                    </Checkbox>
-                    {currentUser === player && (
-                      <IconButton
-                        aria-label="Add note"
-                        icon={<FaComment />}
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="purple"
-                        onClick={() => {
-                          const weedEntry = users.find(u => u.name === player)?.weedUsage?.find((w: WeedUsage) => w.date === today);
-                          setTaskToAddNote({ id: weedEntry?.id || '', note: weedEntry?.note });
-                        }}
-                      />
-                    )}
+                    />
                   </HStack>
                 </Box>
+              )}
 
-                <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                  <Flex justify="space-between" align="center" mb={4}>
-                    <Heading size="md" color={textColor}>Daily Tasks</Heading>
-                    <Badge colorScheme="purple" p={2}>
-                      {getDailyPoints(player)} pts today
-                    </Badge>
-                  </Flex>
-                  <VStack align="stretch" spacing={4}>
-                    {dailyTasks.map(task => (
-                      <HStack key={task.id} p={2} bg={taskBgColor} borderRadius="md">
-                        <Checkbox
-                          isChecked={task.completed}
-                          onChange={() => handleToggleTask(task.id, player)}
+              <Box bg={bgColor} p={4} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                <HStack justify="space-between">
+                  <Checkbox
+                    isChecked={users.find(u => u.name === user.name)?.weedUsage?.find((w: WeedUsage) => w.date === today)?.used || false}
+                    onChange={(e) => handleTrackWeed(e.target.checked)}
+                    colorScheme="purple"
+                    isDisabled={currentUser !== user.name}
+                  >
+                    <Text color={textColor}>I smoked weed today</Text>
+                  </Checkbox>
+                  {currentUser === user.name && (
+                    <IconButton
+                      aria-label="Add note"
+                      icon={<FaComment />}
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="purple"
+                      onClick={() => {
+                        const weedEntry = users.find(u => u.name === user.name)?.weedUsage?.find((w: WeedUsage) => w.date === today);
+                        setTaskToAddNote({ id: weedEntry?.id || '', note: weedEntry?.note });
+                      }}
+                    />
+                  )}
+                </HStack>
+              </Box>
+
+              <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                <Flex justify="space-between" align="center" mb={4}>
+                  <Heading size="md" color={textColor}>Daily Tasks</Heading>
+                  <Badge colorScheme="purple" p={2}>
+                    {getDailyPoints(user.name)} pts today
+                  </Badge>
+                </Flex>
+                <VStack align="stretch" spacing={4}>
+                  {dailyTasks.map(task => (
+                    <HStack key={task.id} p={2} bg={taskBgColor} borderRadius="md">
+                      <Checkbox
+                        isChecked={task.completed}
+                        onChange={() => handleToggleTask(task.id, user.name)}
+                        colorScheme="purple"
+                        isDisabled={currentUser !== user.name}
+                      >
+                        <Text as={task.completed ? 'del' : 'span'} color={textColor}>
+                          {task.text}
+                        </Text>
+                      </Checkbox>
+                      <Badge colorScheme="purple" ml="auto" mr={2}>
+                        {task.points > 0 ? `+${task.points}` : task.points} pts
+                      </Badge>
+                      {task.note && (
+                        <Popover>
+                          <PopoverTrigger>
+                            <IconButton
+                              aria-label="View note"
+                              icon={<FaComment />}
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="purple"
+                            />
+                          </PopoverTrigger>
+                          <PopoverContent bg={bgColor} borderColor={borderColor}>
+                            <PopoverArrow />
+                            <PopoverCloseButton />
+                            <PopoverBody color={textColor}>{task.note}</PopoverBody>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {currentUser === user.name && (
+                        <IconButton
+                          aria-label="Add note"
+                          icon={<FaComment />}
+                          size="sm"
+                          variant="ghost"
                           colorScheme="purple"
-                          isDisabled={currentUser !== player}
-                        >
-                          <Text as={task.completed ? 'del' : 'span'} color={textColor}>
-                            {task.text}
-                          </Text>
-                        </Checkbox>
-                        <Badge colorScheme="purple" ml="auto" mr={2}>
-                          {task.points > 0 ? `+${task.points}` : task.points} pts
-                        </Badge>
-                        {task.note && (
-                          <Popover>
-                            <PopoverTrigger>
-                              <IconButton
-                                aria-label="View note"
-                                icon={<FaComment />}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="purple"
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent bg={bgColor} borderColor={borderColor}>
-                              <PopoverArrow />
-                              <PopoverCloseButton />
-                              <PopoverBody color={textColor}>{task.note}</PopoverBody>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                        {currentUser === player && (
+                          onClick={() => setTaskToAddNote({ id: task.id, note: task.note })}
+                        />
+                      )}
+                    </HStack>
+                  ))}
+                </VStack>
+              </Box>
+
+              <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                <Heading size="md" mb={4} color={textColor}>Custom Tasks</Heading>
+                <VStack align="stretch" spacing={4}>
+                  {customTasks.map(task => (
+                    <HStack key={task.id} p={2} bg={taskBgColor} borderRadius="md">
+                      <Checkbox
+                        isChecked={task.completed}
+                        onChange={() => handleToggleTask(task.id, user.name)}
+                        colorScheme="purple"
+                        isDisabled={currentUser !== user.name}
+                      >
+                        <Text as={task.completed ? 'del' : 'span'} color={textColor}>
+                          {task.text}
+                        </Text>
+                      </Checkbox>
+                      <Badge colorScheme="purple" ml="auto" mr={2}>
+                        {task.points > 0 ? `+${task.points}` : task.points} pts
+                      </Badge>
+                      {task.note && (
+                        <Popover>
+                          <PopoverTrigger>
+                            <IconButton
+                              aria-label="View note"
+                              icon={<FaComment />}
+                              size="sm"
+                              variant="ghost"
+                              colorScheme="purple"
+                            />
+                          </PopoverTrigger>
+                          <PopoverContent bg={bgColor} borderColor={borderColor}>
+                            <PopoverArrow />
+                            <PopoverCloseButton />
+                            <PopoverBody color={textColor}>{task.note}</PopoverBody>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {currentUser === user.name && (
+                        <>
                           <IconButton
                             aria-label="Add note"
                             icon={<FaComment />}
@@ -670,120 +759,77 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
                             colorScheme="purple"
                             onClick={() => setTaskToAddNote({ id: task.id, note: task.note })}
                           />
-                        )}
-                      </HStack>
-                    ))}
-                  </VStack>
-                </Box>
-
-                <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                  <Heading size="md" mb={4} color={textColor}>Custom Tasks</Heading>
-                  <VStack align="stretch" spacing={4}>
-                    {customTasks.map(task => (
-                      <HStack key={task.id} p={2} bg={taskBgColor} borderRadius="md">
-                        <Checkbox
-                          isChecked={task.completed}
-                          onChange={() => handleToggleTask(task.id, player)}
-                          colorScheme="purple"
-                          isDisabled={currentUser !== player}
-                        >
-                          <Text as={task.completed ? 'del' : 'span'} color={textColor}>
-                            {task.text}
-                          </Text>
-                        </Checkbox>
-                        <Badge colorScheme="purple" ml="auto" mr={2}>
-                          {task.points > 0 ? `+${task.points}` : task.points} pts
-                        </Badge>
-                        {task.note && (
-                          <Popover>
-                            <PopoverTrigger>
-                              <IconButton
-                                aria-label="View note"
-                                icon={<FaComment />}
-                                size="sm"
-                                variant="ghost"
-                                colorScheme="purple"
-                              />
-                            </PopoverTrigger>
-                            <PopoverContent bg={bgColor} borderColor={borderColor}>
-                              <PopoverArrow />
-                              <PopoverCloseButton />
-                              <PopoverBody color={textColor}>{task.note}</PopoverBody>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                        {currentUser === player && (
                           <IconButton
-                            aria-label="Add note"
-                            icon={<FaComment />}
+                            aria-label="Delete task"
+                            icon={<FaTrash />}
                             size="sm"
                             variant="ghost"
-                            colorScheme="purple"
-                            onClick={() => setTaskToAddNote({ id: task.id, note: task.note })}
+                            colorScheme="red"
+                            onClick={() => handleDeleteTask(task.id)}
                           />
-                        )}
-                      </HStack>
-                    ))}
+                        </>
+                      )}
+                    </HStack>
+                  ))}
+                </VStack>
+              </Box>
+
+              <TrainingLog
+                onSelectBodyPart={handleAddTraining}
+                selectedParts={user.training.filter(t => t.date === today)}
+                isCurrentUser={user.name === currentUser}
+                onDeleteTraining={user.name === currentUser ? handleDeleteTraining : undefined}
+              />
+
+              {user.name === currentUser && (
+                <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                  <Heading size="md" mb={4} color={textColor}>Daily Reflection</Heading>
+                  <VStack spacing={4}>
+                    <Box w="full">
+                      <Text mb={2} color={textColor}>Question of the Day</Text>
+                      <Textarea
+                        value={user.insights.find(i => i.date === today)?.question || ''}
+                        onChange={(e) => handleUpdateInsight('question', e.target.value)}
+                        placeholder="What's your question for today?"
+                        bg={bgColor}
+                        color={textColor}
+                        borderColor={borderColor}
+                      />
+                    </Box>
+                    <Box w="full">
+                      <Text mb={2} color={textColor}>Erkenntnis of the Day</Text>
+                      <Textarea
+                        value={user.insights.find(i => i.date === today)?.insight || ''}
+                        onChange={(e) => handleUpdateInsight('insight', e.target.value)}
+                        placeholder="What did you learn today?"
+                        bg={bgColor}
+                        color={textColor}
+                        borderColor={borderColor}
+                      />
+                    </Box>
                   </VStack>
                 </Box>
+              )}
 
-                <TrainingLog
-                  onSelectBodyPart={handleAddTraining}
-                  selectedParts={user.training.filter(t => t.date === today)}
-                  isCurrentUser={player === currentUser}
-                  onDeleteTraining={player === currentUser ? handleDeleteTraining : undefined}
-                />
-
-                {player === currentUser && (
-                  <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                    <Heading size="md" mb={4} color={textColor}>Daily Reflection</Heading>
-                    <VStack spacing={4}>
-                      <Box w="full">
-                        <Text mb={2} color={textColor}>Question of the Day</Text>
-                        <Textarea
-                          value={user.insights.find(i => i.date === today)?.question || ''}
-                          onChange={(e) => handleUpdateInsight('question', e.target.value)}
-                          placeholder="What's your question for today?"
-                          bg={bgColor}
-                          color={textColor}
-                          borderColor={borderColor}
-                        />
-                      </Box>
-                      <Box w="full">
-                        <Text mb={2} color={textColor}>Erkenntnis of the Day</Text>
-                        <Textarea
-                          value={user.insights.find(i => i.date === today)?.insight || ''}
-                          onChange={(e) => handleUpdateInsight('insight', e.target.value)}
-                          placeholder="What did you learn today?"
-                          bg={bgColor}
-                          color={textColor}
-                          borderColor={borderColor}
-                        />
-                      </Box>
-                    </VStack>
-                  </Box>
-                )}
-
-                {player !== currentUser && user.insights.find(i => i.date === today)?.question && (
-                  <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
-                    <Heading size="md" mb={4} color={textColor}>Daily Reflection</Heading>
-                    <VStack spacing={4} align="stretch">
-                      <Box>
-                        <Text fontWeight="bold" color={textColor}>Question of the Day:</Text>
-                        <Text color={textColor}>{user.insights.find(i => i.date === today)?.question}</Text>
-                      </Box>
-                      <Box>
-                        <Text fontWeight="bold" color={textColor}>Erkenntnis of the Day:</Text>
-                        <Text color={textColor}>{user.insights.find(i => i.date === today)?.insight}</Text>
-                      </Box>
-                    </VStack>
-                  </Box>
-                )}
-              </VStack>
-            </Box>
-          )
-        })}
-      </Grid>
+              {user.name !== currentUser && user.insights.find(i => i.date === today)?.question && (
+                <Box bg={bgColor} p={6} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
+                  <Heading size="md" mb={4} color={textColor}>Daily Reflection</Heading>
+                  <VStack spacing={4} align="stretch">
+                    <Box>
+                      <Text fontWeight="bold" color={textColor}>Question of the Day:</Text>
+                      <Text color={textColor}>{user.insights.find(i => i.date === today)?.question}</Text>
+                    </Box>
+                    <Box>
+                      <Text fontWeight="bold" color={textColor}>Erkenntnis of the Day:</Text>
+                      <Text color={textColor}>{user.insights.find(i => i.date === today)?.insight}</Text>
+                    </Box>
+                  </VStack>
+                </Box>
+              )}
+            </VStack>
+          </Box>
+        )
+      })}
 
       {/* Task Note Dialog */}
       {taskToAddNote && (

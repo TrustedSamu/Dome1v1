@@ -341,4 +341,14 @@ const calculateSleepDuration = (sleepTime: string, wakeTime: string): number => 
   
   const diff = wake.getTime() - sleep.getTime();
   return Math.round((diff / (1000 * 60 * 60)) * 10) / 10; // Round to 1 decimal place
+};
+
+export const deleteTask = async (name: string, taskId: string) => {
+  const userRef = doc(db, USERS_COLLECTION, name);
+  const user = await getUser(name);
+  if (!user) return null;
+
+  const updatedTasks = user.tasks.filter(t => t.id !== taskId);
+  await updateDoc(userRef, { tasks: updatedTasks });
+  return updatedTasks;
 }; 
