@@ -11,16 +11,22 @@ const UserSelection = ({ onSelectUser }: UserSelectionProps) => {
   const users = ['Dominik', 'Samu']
 
   return (
-    <VStack spacing={8}>
-      <Heading size="2xl" color="purple.600">Welcome to DomeApp</Heading>
-      <Text fontSize="xl" color="gray.600">Select your profile to continue</Text>
+    <VStack spacing={8} p={{ base: 4, md: 8 }}>
+      <Heading size={{ base: "xl", md: "2xl" }} color="purple.600" textAlign="center">Welcome to DomeApp</Heading>
+      <Text fontSize={{ base: "lg", md: "xl" }} color="gray.600" textAlign="center">Select your profile to continue</Text>
       
-      <SimpleGrid columns={2} spacing={8} w="full" maxW="4xl" mx="auto">
+      <SimpleGrid 
+        columns={{ base: 1, md: 2 }} 
+        spacing={{ base: 4, md: 8 }} 
+        w="full" 
+        maxW="4xl" 
+        mx="auto"
+      >
         {users.map((user) => (
           <Box
             key={user}
             bg={bgColor}
-            p={8}
+            p={{ base: 6, md: 8 }}
             borderRadius="xl"
             boxShadow="xl"
             cursor="pointer"
@@ -34,12 +40,12 @@ const UserSelection = ({ onSelectUser }: UserSelectionProps) => {
                 borderRadius="full"
                 color="purple.600"
               >
-                <FaUser size={40} />
+                <FaUser size={32} />
               </Box>
-              <Heading size="lg">{user}</Heading>
+              <Heading size={{ base: "md", md: "lg" }}>{user}</Heading>
               <Button
                 colorScheme="purple"
-                size="lg"
+                size={{ base: "md", md: "lg" }}
                 w="full"
                 onClick={() => onSelectUser(user)}
               >

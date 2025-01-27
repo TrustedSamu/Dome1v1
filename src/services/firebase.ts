@@ -29,6 +29,7 @@ export interface User {
     wakeTime: string;
     duration: number;  // in hours
   };
+  weedUsage: WeedUsage[];
 }
 
 interface Task {
@@ -52,6 +53,13 @@ interface DailyInsight {
   question: string;
   insight: string;
   date: string;
+}
+
+interface WeedUsage {
+  id: string;
+  date: string;
+  used: boolean;
+  note?: string;
 }
 
 export const getUser = async (name: string): Promise<User | null> => {
@@ -145,7 +153,8 @@ export const initializeUsers = async () => {
           stats: {
             totalPoints: 0,
             dailyWins: 0
-          }
+          },
+          weedUsage: []
         });
       }
     }
@@ -250,7 +259,7 @@ export const initializeDailyTasks = async (name: string) => {
   }
 };
 
-// Add function to track weed usage
+// Update function to track weed usage
 export const trackWeedUsage = async (name: string, used: boolean, note?: string) => {
   const userRef = doc(db, USERS_COLLECTION, name);
   const today = new Date().toISOString().split('T')[0];
@@ -258,31 +267,26 @@ export const trackWeedUsage = async (name: string, used: boolean, note?: string)
   const user = await getUser(name);
   if (!user) return null;
 
-  const existingWeedTask = user.tasks.find(t => 
-    t.date === today && t.text === 'Smoked weed today'
-  );
+  const existingEntry = user.weedUsage?.find(w => w.date === today);
 
-  if (existingWeedTask) {
+  if (existingEntry) {
     // Update existing entry
-    const updatedTasks = user.tasks.map(task => 
-      task.id === existingWeedTask.id 
-        ? { ...task, completed: used, note } 
-        : task
+    const updatedWeedUsage = user.weedUsage.map(entry => 
+      entry.date === today 
+        ? { ...entry, used, note } 
+        : entry
     );
-    await updateDoc(userRef, { tasks: updatedTasks });
+    await updateDoc(userRef, { weedUsage: updatedWeedUsage });
   } else {
     // Create new entry
-    const weedTask = {
+    const newEntry = {
       id: `weed-${today}`,
-      text: 'Smoked weed today',
-      points: -10, // Negative points for smoking
-      completed: used,
       date: today,
-      note,
-      isRecurring: true
+      used,
+      note
     };
     await updateDoc(userRef, {
-      tasks: arrayUnion(weedTask)
+      weedUsage: arrayUnion(newEntry)
     });
   }
 };

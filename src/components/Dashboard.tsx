@@ -64,6 +64,13 @@ interface Task {
   note?: string
 }
 
+interface WeedUsage {
+  id: string
+  date: string
+  used: boolean
+  note?: string
+}
+
 interface DailyInsight {
   question: string
   insight: string
@@ -73,6 +80,11 @@ interface DailyInsight {
 interface PlayerStats {
   totalPoints: number
   dailyWins: number
+}
+
+// Extend the imported User type
+type ExtendedUser = User & {
+  weedUsage: WeedUsage[]
 }
 
 interface DashboardProps {
@@ -136,7 +148,7 @@ const TaskNoteDialog = ({ isOpen, onClose, onSave, initialNote = '' }: TaskNoteD
 }
 
 const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<ExtendedUser[]>([])
   const [newTask, setNewTask] = useState('')
   const [newPoints, setNewPoints] = useState('5')
   const toast = useToast()
@@ -406,9 +418,9 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
     }
   }
 
-  const handleTrackWeed = async (used: boolean, note?: string) => {
+  const handleTrackWeed = async (used: boolean) => {
     try {
-      await trackWeedUsage(currentUser, used, note)
+      await trackWeedUsage(currentUser, used, '')
       const updatedUser = await getUser(currentUser)
       if (updatedUser) {
         setUsers(prev => prev.map(user => 
@@ -434,11 +446,17 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
   }
 
   return (
-    <Box minH="100vh" bg={pageBgColor} p={6}>
-      <Flex justify="space-between" align="center" mb={8}>
-        <VStack align="flex-start">
-          <Heading size="xl" color={useColorModeValue('purple.600', 'purple.300')}>Welcome, {currentUser}!</Heading>
-          <StatGroup>
+    <Box minH="100vh" bg={pageBgColor} p={{ base: 2, md: 6 }}>
+      <Flex 
+        direction={{ base: 'column', md: 'row' }} 
+        justify="space-between" 
+        align={{ base: 'stretch', md: 'center' }} 
+        mb={8}
+        gap={4}
+      >
+        <VStack align={{ base: 'center', md: 'flex-start' }}>
+          <Heading size={{ base: 'lg', md: 'xl' }} color={useColorModeValue('purple.600', 'purple.300')}>Welcome, {currentUser}!</Heading>
+          <StatGroup w={{ base: 'full', md: 'auto' }}>
             <Stat>
               <StatLabel color={textColor}>Total Points</StatLabel>
               <StatNumber color={textColor}>{getCurrentUser()?.stats.totalPoints || 0}</StatNumber>
@@ -449,7 +467,7 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
             </Stat>
           </StatGroup>
         </VStack>
-        <HStack spacing={4}>
+        <HStack spacing={4} justify={{ base: 'center', md: 'flex-end' }} w={{ base: 'full', md: 'auto' }}>
           <IconButton
             aria-label="Toggle color mode"
             icon={colorMode === 'light' ? <FaMoon /> : <FaSun />}
@@ -474,7 +492,11 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
         </HStack>
       </Flex>
 
-      <Grid templateColumns="repeat(2, 1fr)" gap={6} mb={6}>
+      <Grid 
+        templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} 
+        gap={{ base: 4, md: 6 }} 
+        mb={6}
+      >
         {['Dominik', 'Samu'].map(player => {
           const user = users.find(u => u.name === player)
           if (!user) return null
@@ -496,9 +518,25 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
                           <Input
                             type="time"
                             value={users.find(u => u.name === player)?.sleep?.sleepTime || ''}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               if (currentUser === player) {
-                                updateSleepTime(player, e.target.value, today);
+                                try {
+                                  await updateSleepTime(player, e.target.value, today);
+                                  // Update local state after successful API call
+                                  const updatedUser = await getUser(player);
+                                  if (updatedUser) {
+                                    setUsers(prev => prev.map(user => 
+                                      user.name === player ? updatedUser : user
+                                    ));
+                                  }
+                                } catch (error) {
+                                  console.error('Error updating sleep time:', error);
+                                  toast({
+                                    title: 'Error updating sleep time',
+                                    status: 'error',
+                                    duration: 3000,
+                                  });
+                                }
                               }
                             }}
                             size="sm"
@@ -511,9 +549,25 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
                           <Input
                             type="time"
                             value={users.find(u => u.name === player)?.sleep?.wakeTime || ''}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               if (currentUser === player) {
-                                updateWakeTime(player, e.target.value, today);
+                                try {
+                                  await updateWakeTime(player, e.target.value, today);
+                                  // Update local state after successful API call
+                                  const updatedUser = await getUser(player);
+                                  if (updatedUser) {
+                                    setUsers(prev => prev.map(user => 
+                                      user.name === player ? updatedUser : user
+                                    ));
+                                  }
+                                } catch (error) {
+                                  console.error('Error updating wake time:', error);
+                                  toast({
+                                    title: 'Error updating wake time',
+                                    status: 'error',
+                                    duration: 3000,
+                                  });
+                                }
                               }
                             }}
                             size="sm"
@@ -566,7 +620,7 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
                 <Box bg={bgColor} p={4} borderRadius="xl" boxShadow="md" borderWidth="1px" borderColor={borderColor}>
                   <HStack justify="space-between">
                     <Checkbox
-                      isChecked={users.find(u => u.name === player)?.tasks.find(t => t.text === 'Smoked weed today' && t.date === today)?.completed || false}
+                      isChecked={users.find(u => u.name === player)?.weedUsage?.find((w: WeedUsage) => w.date === today)?.used || false}
                       onChange={(e) => handleTrackWeed(e.target.checked)}
                       colorScheme="purple"
                       isDisabled={currentUser !== player}
@@ -581,8 +635,8 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
                         variant="ghost"
                         colorScheme="purple"
                         onClick={() => {
-                          const weedTask = users.find(u => u.name === player)?.tasks.find(t => t.text === 'Smoked weed today' && t.date === today);
-                          setTaskToAddNote({ id: weedTask?.id || '', note: weedTask?.note });
+                          const weedEntry = users.find(u => u.name === player)?.weedUsage?.find((w: WeedUsage) => w.date === today);
+                          setTaskToAddNote({ id: weedEntry?.id || '', note: weedEntry?.note });
                         }}
                       />
                     )}

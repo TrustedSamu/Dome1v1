@@ -61,7 +61,7 @@ function App() {
 
   return (
     <Box minH="100vh" bg={bgColor}>
-      <Container maxW="container.xl" py={8}>
+      <Container maxW="container.xl" py={{ base: 4, md: 8 }} px={{ base: 2, md: 4 }}>
         {!currentUser ? (
           <UserSelection onSelectUser={setCurrentUser} />
         ) : (
