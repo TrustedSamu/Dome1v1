@@ -30,6 +30,5 @@ pnpm-debug.log*
 *.swp
 *.swo
 
-# Firebase
-.firebase/
-firebase-debug.log 
+# Vercel
+.vercel

@@ -1,16 +1,16 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
+  Button,
   VStack,
-  Heading,
   Text,
-  Select,
   HStack,
   Badge,
   Grid,
-  Flex,
-  Button,
+  Heading,
   useColorModeValue,
+  Flex,
+  Select,
 } from '@chakra-ui/react'
 import { FaCalendar, FaTrophy } from 'react-icons/fa'
 import type { User } from '../services/firebase'
@@ -26,7 +26,6 @@ const History = ({ users, onClose }: HistoryProps) => {
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   })
 
-  const pageBgColor = useColorModeValue('white', 'gray.800')
   const bgColor = useColorModeValue('white', 'gray.700')
   const borderColor = useColorModeValue('gray.200', 'gray.600')
   const textColor = useColorModeValue('gray.800', 'white')
@@ -79,7 +78,7 @@ const History = ({ users, onClose }: HistoryProps) => {
       <HStack mb={6}>
         <Select
           value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedMonth(e.target.value)}
           w="200px"
           bg={bgColor}
           color={textColor}

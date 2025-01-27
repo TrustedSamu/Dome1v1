@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Box, Container, Spinner, Center, Text, VStack, useColorModeValue } from '@chakra-ui/react'
 import UserSelection from './components/UserSelection'
 import Dashboard from './components/Dashboard'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box,
   Button,
@@ -33,8 +33,8 @@ import {
   PopoverArrow,
   PopoverCloseButton,
 } from '@chakra-ui/react'
-import { FaPlus, FaSignOutAlt, FaTrophy, FaHistory, FaMoon, FaSun, FaComment } from 'react-icons/fa'
-import TrainingLog, { TrainingData } from './BodyMap'
+import { FaPlus, FaSignOutAlt, FaHistory, FaMoon, FaSun, FaComment } from 'react-icons/fa'
+import TrainingLog from './BodyMap'
 import { 
   getUser, 
   getAllUsers, 
@@ -51,35 +51,12 @@ import {
 } from '../services/firebase'
 import type { User } from '../services/firebase'
 import History from './History'
-import { doc, updateDoc } from 'firebase/firestore'
-import { db } from '../config/firebase'
-
-interface Task {
-  id: number
-  text: string
-  points: number
-  completed: boolean
-  date: string
-  isRecurring: boolean
-  note?: string
-}
 
 interface WeedUsage {
   id: string
   date: string
   used: boolean
   note?: string
-}
-
-interface DailyInsight {
-  question: string
-  insight: string
-  date: string
-}
-
-interface PlayerStats {
-  totalPoints: number
-  dailyWins: number
 }
 
 // Extend the imported User type
@@ -103,7 +80,7 @@ const TaskNoteDialog = ({ isOpen, onClose, onSave, initialNote = '' }: TaskNoteD
   const [note, setNote] = useState(initialNote)
   const bgColor = useColorModeValue('white', 'gray.700')
   const textColor = useColorModeValue('gray.800', 'white')
-  const cancelRef = React.useRef<HTMLButtonElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
   return (
     <AlertDialog
@@ -155,7 +132,7 @@ const Dashboard = ({ currentUser, onLogout }: DashboardProps) => {
   const [showHistory, setShowHistory] = useState(false)
   const { colorMode, toggleColorMode } = useColorMode()
   const [taskToConfirm, setTaskToConfirm] = useState<{ id: string; player: string } | null>(null)
-  const cancelRef = React.useRef<HTMLButtonElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
   const pageBgColor = useColorModeValue('white', 'gray.800')
   const bgColor = useColorModeValue('white', 'gray.700')
   const borderColor = useColorModeValue('gray.200', 'gray.600')

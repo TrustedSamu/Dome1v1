@@ -7,9 +7,6 @@ import {
   setDoc,
   updateDoc,
   arrayUnion,
-  query,
-  where,
-  Timestamp,
 } from 'firebase/firestore';
 
 const USERS_COLLECTION = 'users';

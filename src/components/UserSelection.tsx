@@ -1,4 +1,3 @@
-import React from 'react'
 import { Box, Heading, SimpleGrid, VStack, Text, useColorModeValue, Button } from '@chakra-ui/react'
 import { FaUser } from 'react-icons/fa'
 
